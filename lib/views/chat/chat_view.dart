@@ -15,11 +15,11 @@ class ChatView extends ConsumerStatefulWidget {
   final Color themeColor;
 
   const ChatView({
-    Key? key,
+    super.key,
     required this.mode,
     required this.imagePath,
     required this.themeColor,
-  }) : super(key: key);
+  });
 
   @override
   ConsumerState<ChatView> createState() => _ChatViewState();
@@ -28,7 +28,7 @@ class ChatView extends ConsumerStatefulWidget {
 class _ChatViewState extends ConsumerState<ChatView> {
   final TextEditingController _textController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
-  
+
   final _localStorageService = LocalStorageService();
   int _remainingRights = 2;
   BannerAd? _bannerAd;
@@ -89,11 +89,137 @@ class _ChatViewState extends ConsumerState<ChatView> {
   }
 
   void _sendMessage() {
-    if (_textController.text.isNotEmpty && _remainingRights > 0) {
-      ref.read(chatViewModelProvider.notifier).sendMessage(widget.mode, _textController.text);
+    if (_textController.text.trim().isNotEmpty && _remainingRights > 0) {
+      final text = _textController.text.trim();
       _textController.clear();
-      _scrollToBottom();
+      FocusScope.of(context).unfocus(); // Close the keyboard
+      _showToneSelectionSheet(context, text);
     }
+  }
+
+  void _executeSendMessage(String text, String tone) {
+    ref
+        .read(chatViewModelProvider.notifier)
+        .sendMessage(widget.mode, text, tone);
+    _scrollToBottom();
+  }
+
+  void _showToneSelectionSheet(BuildContext context, String text) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) {
+        return Container(
+          decoration: const BoxDecoration(
+            color: ColorConstants.backgroundColor,
+            borderRadius: BorderRadius.only(
+              topLeft: Radius.circular(24),
+              topRight: Radius.circular(24),
+            ),
+          ),
+          padding: EdgeInsets.only(
+            left: 24,
+            right: 24,
+            top: 20,
+            bottom: 20 + MediaQuery.of(context).viewInsets.bottom,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                'Cevap Tarzını Seç',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: ColorConstants.titleColor,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Yapay zekanın bu mesaja hangi tonda yanıt vermesini istersiniz?',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 14, color: Colors.grey),
+              ),
+              const SizedBox(height: 24),
+              _buildToneOptionButton(
+                context: context,
+                emoji: '😊',
+                title: 'Samimi',
+                toneKey: 'samimi',
+                text: text,
+              ),
+              const SizedBox(height: 12),
+              _buildToneOptionButton(
+                context: context,
+                emoji: '😒',
+                title: 'Pasif-Agresif',
+                toneKey: 'pasif agrasif',
+                text: text,
+              ),
+              const SizedBox(height: 12),
+              _buildToneOptionButton(
+                context: context,
+                emoji: '🥰',
+                title: 'Sevecen Cana Yakın',
+                toneKey: 'sevecen cana yakın',
+                text: text,
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildToneOptionButton({
+    required BuildContext context,
+    required String emoji,
+    required String title,
+    required String toneKey,
+    required String text,
+  }) {
+    return ElevatedButton(
+      onPressed: () {
+        Navigator.pop(context); // Close the bottom sheet
+        _executeSendMessage(text, toneKey);
+      },
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black87,
+        elevation: 2,
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: Colors.grey.shade200),
+        ),
+      ),
+      child: Row(
+        children: [
+          Text(emoji, style: const TextStyle(fontSize: 22)),
+          const SizedBox(width: 16),
+          Text(
+            title,
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+          const Spacer(),
+          const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
+        ],
+      ),
+    );
   }
 
   void _watchRewardedAd() {
@@ -105,7 +231,7 @@ class _ChatViewState extends ConsumerState<ChatView> {
       },
       onAdClosed: () {
         _loadRights();
-      }
+      },
     );
   }
 
@@ -114,16 +240,18 @@ class _ChatViewState extends ConsumerState<ChatView> {
     final image = await picker.pickImage(source: ImageSource.gallery);
     if (image != null && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Fotoğraf seçildi! OCR işlemi henüz entegre değil.')),
+        const SnackBar(
+          content: Text('Fotoğraf seçildi! OCR işlemi henüz entegre değil.'),
+        ),
       );
     }
   }
 
   void _copyToClipboard(String text) {
     Clipboard.setData(ClipboardData(text: text));
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Panoya kopyalandı!')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Panoya kopyalandı!')));
   }
 
   void _showClearChatDialog() {
@@ -131,11 +259,16 @@ class _ChatViewState extends ConsumerState<ChatView> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('Sohbet Geçmişini Temizle', style: TextStyle(fontWeight: FontWeight.bold)),
+          title: const Text(
+            'Sohbet Geçmişini Temizle',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
           content: const Text(
             'Bu karakterle olan tüm konuşma geçmişini tamamen sıfırlamak istiyorsun. Bunun için 1 ödüllü reklam izlemen gerekiyor, onaylıyor musun?',
           ),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           actions: [
             TextButton(
               onPressed: () {
@@ -146,15 +279,26 @@ class _ChatViewState extends ConsumerState<ChatView> {
             ElevatedButton.icon(
               onPressed: () {
                 Navigator.pop(context); // Close dialog
-                ref.read(chatViewModelProvider.notifier).clearChatHistoryWithReward(widget.mode);
+                ref
+                    .read(chatViewModelProvider.notifier)
+                    .clearChatHistoryWithReward(widget.mode);
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.orange,
                 foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
-              icon: const Icon(Icons.ondemand_video, size: 18, color: Colors.white),
-              label: const Text('Reklam İzle ve Temizle 🎥', style: TextStyle(fontWeight: FontWeight.bold)),
+              icon: const Icon(
+                Icons.ondemand_video,
+                size: 18,
+                color: Colors.white,
+              ),
+              label: const Text(
+                'Reklam İzle ve Temizle 🎥',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
             ),
           ],
         );
@@ -165,7 +309,7 @@ class _ChatViewState extends ConsumerState<ChatView> {
   @override
   Widget build(BuildContext context) {
     final chatState = ref.watch(chatViewModelProvider);
-    
+
     ref.listen<ChatState>(chatViewModelProvider, (previous, next) {
       if (previous?.messages.length != next.messages.length) {
         _scrollToBottom();
@@ -193,19 +337,33 @@ class _ChatViewState extends ConsumerState<ChatView> {
                 children: [
                   Text(
                     widget.mode,
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                      color: Colors.white,
+                    ),
                     overflow: TextOverflow.ellipsis,
                   ),
                   Container(
                     margin: const EdgeInsets.only(top: 2),
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
                     decoration: BoxDecoration(
-                      color: _remainingRights > 0 ? Colors.green.shade400 : Colors.red.shade400,
+                      color:
+                          _remainingRights > 0
+                              ? Colors.green.shade400
+                              : Colors.red.shade400,
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
                       'Kalan Mesaj Hakkın: $_remainingRights',
-                      style: const TextStyle(fontSize: 11, color: Colors.white, fontWeight: FontWeight.bold),
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 ],
@@ -282,153 +440,73 @@ class _ChatViewState extends ConsumerState<ChatView> {
   }
 
   Widget _buildAiMessage(ChatMessageModel message) {
-    if (message.text.isNotEmpty) {
-      // Fallback for errors or direct system responses
-      return Align(
-        alignment: Alignment.centerLeft,
-        child: Container(
-          margin: const EdgeInsets.symmetric(vertical: 4),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.only(
-              topLeft: Radius.circular(16),
-              topRight: Radius.circular(16),
-              bottomRight: Radius.circular(16),
-              bottomLeft: Radius.circular(0),
-            ),
-          ),
-          child: Text(
-            message.text,
-            style: const TextStyle(color: Colors.red, fontWeight: FontWeight.w500),
-          ),
-        ),
-      );
+    // Determine text to show. Fallback to option1 if text is empty.
+    String textToShow = message.text;
+    if (textToShow.isEmpty) {
+      textToShow = message.option1 ?? '';
     }
 
-    // 3 Alternatif Cevap Carousel
-    return Container(
-      margin: const EdgeInsets.symmetric(vertical: 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Padding(
-            padding: EdgeInsets.only(left: 4.0, bottom: 8.0),
-            child: Row(
-              children: [
-                Icon(Icons.assistant, size: 16, color: Colors.black54),
-                SizedBox(width: 6),
-                Text(
-                  'Alternatif Cevaplar (Sola Kaydırın):',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12,
-                    color: Colors.black54,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          SizedBox(
-            height: 200,
-            child: PageView(
-              controller: PageController(viewportFraction: 0.88),
-              padEnds: false,
-              children: [
-                _buildCarouselCard(
-                  title: 'Politik / Kibar',
-                  text: message.option1 ?? '',
-                  color: const Color(0xFFE3F2FD),
-                  accentColor: Colors.blue.shade800,
-                  icon: Icons.gavel,
-                ),
-                _buildCarouselCard(
-                  title: 'Kısa / Net',
-                  text: message.option2 ?? '',
-                  color: const Color(0xFFE8F5E9),
-                  accentColor: Colors.green.shade800,
-                  icon: Icons.done_all,
-                ),
-                _buildCarouselCard(
-                  title: 'Yaratıcı / Esprili',
-                  text: message.option3 ?? '',
-                  color: const Color(0xFFFFF3E0),
-                  accentColor: Colors.orange.shade800,
-                  icon: Icons.lightbulb,
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+    if (textToShow.isEmpty) {
+      return const SizedBox.shrink();
+    }
 
-  Widget _buildCarouselCard({
-    required String title,
-    required String text,
-    required Color color,
-    required Color accentColor,
-    required IconData icon,
-  }) {
-    return Card(
-      color: color,
-      elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
-      margin: const EdgeInsets.only(right: 12, bottom: 8),
-      child: Padding(
-        padding: const EdgeInsets.all(14.0),
+    final isError = textToShow.startsWith('Bir hata oluştu:');
+
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(16),
+            topRight: Radius.circular(16),
+            bottomRight: Radius.circular(16),
+            bottomLeft: Radius.circular(0),
+          ),
+        ),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Row(
-              children: [
-                Icon(icon, color: accentColor, size: 18),
-                const SizedBox(width: 8),
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: accentColor,
-                    fontSize: 14,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Expanded(
-              child: SingleChildScrollView(
-                child: Text(
-                  text,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: Colors.black87,
-                    height: 1.3,
-                  ),
-                ),
+            Text(
+              textToShow,
+              style: TextStyle(
+                color: isError ? Colors.red : Colors.black87,
+                fontWeight: isError ? FontWeight.w500 : FontWeight.normal,
+                fontSize: 16,
               ),
             ),
             const SizedBox(height: 8),
             Align(
               alignment: Alignment.centerRight,
-              child: TextButton.icon(
-                onPressed: () => _copyToClipboard(text),
-                style: TextButton.styleFrom(
-                  backgroundColor: Colors.white.withValues(alpha: 0.6),
-                  shape: RoundedRectangleBorder(
+              child: InkWell(
+                onTap: () => _copyToClipboard(textToShow),
+                borderRadius: BorderRadius.circular(20),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
                     borderRadius: BorderRadius.circular(20),
                   ),
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                ),
-                icon: const Icon(Icons.copy, size: 14, color: Colors.black87),
-                label: const Text(
-                  'Kopyala',
-                  style: TextStyle(
-                    color: Colors.black87,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.copy, size: 14, color: Colors.black54),
+                      const SizedBox(width: 4),
+                      const Text(
+                        'Kopyala',
+                        style: TextStyle(
+                          color: Colors.black54,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -463,14 +541,20 @@ class _ChatViewState extends ConsumerState<ChatView> {
               controller: _textController,
               enabled: _remainingRights > 0,
               decoration: InputDecoration(
-                hintText: _remainingRights > 0 ? 'Mesajınızı yazın...' : 'Hakkınız bitti',
+                hintText:
+                    _remainingRights > 0
+                        ? 'Mesajınızı yazın...'
+                        : 'Hakkınız bitti',
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(24),
                   borderSide: BorderSide.none,
                 ),
                 filled: true,
                 fillColor: Colors.grey.shade100,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 10,
+                ),
               ),
               onSubmitted: (_) => _sendMessage(),
             ),
@@ -490,11 +574,26 @@ class _ChatViewState extends ConsumerState<ChatView> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.orange,
                 foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 12,
+                ),
               ),
-              icon: const Icon(Icons.ondemand_video, size: 18, color: Colors.white),
-              label: const Text('1 Hak İzle 🎥', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+              icon: const Icon(
+                Icons.ondemand_video,
+                size: 18,
+                color: Colors.white,
+              ),
+              label: const Text(
+                '1 Hak İzle 🎥',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
             ),
         ],
       ),

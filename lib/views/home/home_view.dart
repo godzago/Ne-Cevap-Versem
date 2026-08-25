@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:screat_app/core/constants/color_constants.dart';
-import 'package:screat_app/viewmodels/home_viewmodel.dart';
 import 'package:screat_app/views/chat/chat_view.dart';
 
 class HomeView extends ConsumerWidget {
@@ -9,8 +8,6 @@ class HomeView extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final selectedMode = ref.watch(homeViewModelProvider);
-
     return Scaffold(
       backgroundColor: ColorConstants.backgroundColor,
       body: SafeArea(
@@ -58,91 +55,38 @@ class HomeView extends ConsumerWidget {
                   childAspectRatio: 0.80, // Tweak this for card aspect ratio
                   children: [
                     _buildModeCard(
+                      context: context,
                       ref: ref,
                       modeName: 'PATRON/YÖNETİCİ',
                       imagePath: 'assets/1boss.png',
                       bgColor: ColorConstants.cardBoss,
-                      isSelected: selectedMode == 'PATRON/YÖNETİCİ',
                     ),
                     _buildModeCard(
+                      context: context,
                       ref: ref,
                       modeName: 'SEVGİLİ/FLÖRT',
                       imagePath: 'assets/2date.png',
                       bgColor: ColorConstants.cardDate,
-                      isSelected: selectedMode == 'SEVGİLİ/FLÖRT',
                     ),
                     _buildModeCard(
+                      context: context,
                       ref: ref,
                       modeName: 'PASİF-AGRESİF',
                       imagePath: 'assets/4angry.png',
                       bgColor: ColorConstants.cardPassiveAggressive,
-                      isSelected: selectedMode == 'PASİF-AGRESİF',
                     ),
                     _buildModeCard(
+                      context: context,
                       ref: ref,
                       modeName: 'MÜLAKAT',
                       imagePath: 'assets/3hr.png',
                       bgColor: ColorConstants.cardHr,
-                      isSelected: selectedMode == 'MÜLAKAT',
                     ),
                   ],
                 ),
               ),
             ),
-            // Next Button
-            Padding(
-              padding: const EdgeInsets.only(bottom: 30, top: 10),
-              child: ElevatedButton(
-                onPressed: selectedMode != null
-                    ? () {
-                        String imagePath = '';
-                        Color themeColor = Colors.blue;
-                        
-                        if (selectedMode == 'PATRON/YÖNETİCİ') {
-                          imagePath = 'assets/1boss.png';
-                          themeColor = ColorConstants.cardBoss;
-                        } else if (selectedMode == 'SEVGİLİ/FLÖRT') {
-                          imagePath = 'assets/2date.png';
-                          themeColor = ColorConstants.cardDate;
-                        } else if (selectedMode == 'PASİF-AGRESİF') {
-                          imagePath = 'assets/4angry.png';
-                          themeColor = ColorConstants.cardPassiveAggressive;
-                        } else if (selectedMode == 'MÜLAKAT') {
-                          imagePath = 'assets/3hr.png';
-                          themeColor = ColorConstants.cardHr;
-                        }
-
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => ChatView(
-                              mode: selectedMode,
-                              imagePath: imagePath,
-                              themeColor: themeColor,
-                            ),
-                          ),
-                        );
-                      }
-                    : null,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: ColorConstants.orangeButton,
-                  foregroundColor: Colors.white,
-                  disabledBackgroundColor: Colors.grey.shade400,
-                  padding: const EdgeInsets.symmetric(horizontal: 60, vertical: 15),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(30),
-                  ),
-                  elevation: 5,
-                ),
-                child: const Text(
-                  'SONRAKİ >',
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ),
+            const SizedBox(height: 20),
           ],
         ),
       ),
@@ -150,25 +94,30 @@ class HomeView extends ConsumerWidget {
   }
 
   Widget _buildModeCard({
+    required BuildContext context,
     required WidgetRef ref,
     required String modeName,
     required String imagePath,
     required Color bgColor,
-    required bool isSelected,
   }) {
     return GestureDetector(
       onTap: () {
-        ref.read(homeViewModelProvider.notifier).selectMode(modeName);
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ChatView(
+              mode: modeName,
+              imagePath: imagePath,
+              themeColor: bgColor,
+            ),
+          ),
+        );
       },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         decoration: BoxDecoration(
           color: bgColor,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: isSelected ? Colors.white : Colors.transparent,
-            width: isSelected ? 4 : 0,
-          ),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.1),

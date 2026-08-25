@@ -34,7 +34,7 @@ class ChatViewModel extends Notifier<ChatState> {
     state = ChatState(messages: history, isLoading: false);
   }
 
-  Future<void> sendMessage(String mode, String text) async {
+  Future<void> sendMessage(String mode, String text, String selectedTone) async {
     if (text.trim().isEmpty) return;
     
     final userMsg = ChatMessageModel(
@@ -53,12 +53,10 @@ class ChatViewModel extends Notifier<ChatState> {
     await _storageService.saveChatHistory(mode, updatedMessages);
     
     try {
-      final result = await _apiService.generateResponse(mode, text);
+      final aiResponse = await _apiService.generateResponse(mode, text, selectedTone);
       final aiMsg = ChatMessageModel(
         isUser: false,
-        option1: result['option_1_kibar'] ?? 'Cevap alınamadı',
-        option2: result['option_2_net'] ?? 'Cevap alınamadı',
-        option3: result['option_3_yaratici'] ?? 'Cevap alınamadı',
+        text: aiResponse,
         timestamp: DateTime.now(),
       );
       
